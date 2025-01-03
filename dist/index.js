@@ -902,6 +902,13 @@ class GitHubService {
         }
 
 
+        const { data: pull } = await this.octokit.pulls.get({
+          owner: this.owner,
+          repo: this.repo,
+          pull_number: prNumber,
+        });
+        const commitId = pull.head.sha;
+
         // Step 2: Add individual comments to the review
         for (const comment of lineComments) {
           try {
@@ -910,6 +917,7 @@ class GitHubService {
               repo: this.repo,
               pull_number: prNumber,
               body: comment.comment,
+              commit_id: commitId,
               path: comment.path,
               side: 'RIGHT', // For new file version
               line: comment.line, // The actual line number
