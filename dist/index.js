@@ -892,7 +892,7 @@ class GitHubService {
             repo: this.repo,
             pull_number: prNumber,
             body: summary,
-            event: suggestedAction.toUpperCase() as 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT',
+            event: suggestedAction.toUpperCase()
           });
           reviewId = initialReview.data.id; // Store the review ID for adding comments later
           core.info(`Initial review created with ID: ${reviewId}`);
