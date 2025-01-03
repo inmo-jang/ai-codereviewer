@@ -103,13 +103,20 @@ export class GitHubService {
       });
       reviewId = initialReview.data.id; // Store the review ID for adding comments later
       core.info(`Initial review created with ID: ${reviewId}`);
-    } catch (error) {
-      core.error(`Failed to create initial review: ${error.message}`);
+    } catch (error: unknown) {
+      core.error(`Failed to create initial review: ${(error as Error).message}`);
       throw error; // Exit if summary review creation fails
     }
 
 
     // Step 2: Add individual comments to the review
+    const { data: pull } = await this.octokit.pulls.get({
+      owner: this.owner,
+      repo: this.repo,
+      pull_number: prNumber,
+    });
+    const commitId = pull.head.sha;
+
     for (const comment of lineComments) {
       try {
         await this.octokit.pulls.createReviewComment({
@@ -117,13 +124,14 @@ export class GitHubService {
           repo: this.repo,
           pull_number: prNumber,
           body: comment.comment,
+          commit_id: commitId,          
           path: comment.path,
           side: 'RIGHT', // For new file version
           line: comment.line, // The actual line number
         });
         core.info(`Comment added for ${comment.path}:${comment.line}`);
-      } catch (error) {
-        core.warning(`Skipping comment for ${comment.path}:${comment.line} - ${error.message}`);
+      } catch (error: unknown) {
+        core.warning(`Skipping comment for ${comment.path}:${comment.line} - ${(error as Error).message}`);
       }
     }
 
