@@ -63,33 +63,72 @@ export class GitHubService {
     const { summary, lineComments = [], suggestedAction } = review;
 
     // Convert line comments to GitHub review comments format
-    const allComments = await Promise.all(lineComments.map(async comment => {
+    // const allComments = await Promise.all(lineComments.map(async comment => {
+    //   try {
+    //     return {
+    //       path: comment.path,
+    //       side: 'RIGHT', // For new file version
+    //       line: comment.line, // The actual line number
+    //       body: comment.comment
+    //     };
+    //   } catch (error) {
+    //     core.warning(`Skipping comment for ${comment.path}:${comment.line} - ${error}`);
+    //     return null;
+    //   }
+    // }));
+
+    // const comments = allComments.filter(comment => comment !== null);
+
+    // core.info(`Submitting review with ${comments.length} comments`);
+    // core.debug(`Review comments: ${JSON.stringify(comments, null, 2)}`);
+
+    // await this.octokit.pulls.createReview({
+    //   owner: this.owner,
+    //   repo: this.repo,
+    //   pull_number: prNumber,
+    //   body: summary,
+    //   comments,
+    //   event: suggestedAction.toUpperCase() as 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT'
+    // });
+
+    // Step 1: Create an initial review with the summary only
+    let reviewId: number | null = null;
+    try {
+      const initialReview = await this.octokit.pulls.createReview({
+        owner: this.owner,
+        repo: this.repo,
+        pull_number: prNumber,
+        body: summary,
+        event: suggestedAction.toUpperCase() as 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT',
+      });
+      reviewId = initialReview.data.id; // Store the review ID for adding comments later
+      core.info(`Initial review created with ID: ${reviewId}`);
+    } catch (error) {
+      core.error(`Failed to create initial review: ${error.message}`);
+      throw error; // Exit if summary review creation fails
+    }
+
+
+    // Step 2: Add individual comments to the review
+    for (const comment of lineComments) {
       try {
-        return {
+        await this.octokit.pulls.createReviewComment({
+          owner: this.owner,
+          repo: this.repo,
+          pull_number: prNumber,
+          body: comment.comment,
           path: comment.path,
           side: 'RIGHT', // For new file version
           line: comment.line, // The actual line number
-          body: comment.comment
-        };
+        });
+        core.info(`Comment added for ${comment.path}:${comment.line}`);
       } catch (error) {
-        core.warning(`Skipping comment for ${comment.path}:${comment.line} - ${error}`);
-        return null;
+        core.warning(`Skipping comment for ${comment.path}:${comment.line} - ${error.message}`);
       }
-    }));
+    }
 
-    const comments = allComments.filter(comment => comment !== null);
+    core.info("Review submission completed.");
 
-    core.info(`Submitting review with ${comments.length} comments`);
-    core.debug(`Review comments: ${JSON.stringify(comments, null, 2)}`);
-
-    await this.octokit.pulls.createReview({
-      owner: this.owner,
-      repo: this.repo,
-      pull_number: prNumber,
-      body: summary,
-      comments,
-      event: suggestedAction.toUpperCase() as 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT'
-    });
   }
 
   /**
